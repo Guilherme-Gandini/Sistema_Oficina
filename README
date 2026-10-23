@@ -1,0 +1,134 @@
+# Sistema de Gestão de Oficina Mecânica
+
+Aplicação web desenvolvida em Python com Flask para apoiar a rotina de uma oficina mecânica. O projeto reúne autenticação de usuários e telas para acompanhar clientes, veículos e agendamentos de serviços.
+
+> **Estado atual:** o esquema definido em `db.sql` não corresponde às colunas consultadas pelo código da aplicação. Por isso, importar o script e iniciar o Flask não é suficiente para usar as funcionalidades com sucesso. Veja [Incompatibilidade conhecida](#incompatibilidade-conhecida) antes de configurar o banco.
+
+## Funcionalidades previstas
+
+- Login e encerramento de sessão.
+- Painel com totais e próximos serviços.
+- Cadastro, edição, exclusão e busca de clientes.
+- Cadastro, edição e exclusão de veículos associados a clientes.
+- Cadastro, alteração de data e exclusão de agendamentos.
+- Senhas e CPFs processados com hashes Bcrypt no código.
+- Interface web com templates Flask/Jinja, CSS e JavaScript.
+
+## Tecnologias
+
+- Python
+- Flask 3.0.3
+- MySQL 8 ou superior
+- MySQL Connector/Python 9.0.0
+- bcrypt 4.2.0
+- HTML, CSS e JavaScript
+
+## Pré-requisitos
+
+- Python 3 instalado.
+- MySQL 8 ou superior em execução.
+- Cliente de linha de comando `mysql` disponível no terminal, para importar o script SQL.
+
+## Instalação
+
+No PowerShell, a partir da pasta do projeto:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+Se a ativação do ambiente virtual for bloqueada pela política do PowerShell, consulte a política de execução configurada no seu computador ou execute os comandos usando o Python de `.venv` diretamente.
+
+## Configuração do banco
+
+O arquivo `db.sql` cria o banco `saep_db`, suas tabelas e dados de exemplo. **Atenção:** o script começa com `DROP DATABASE IF EXISTS saep_db`; importar o arquivo apaga e recria esse banco, portanto não o execute sobre dados que deseja preservar.
+
+```powershell
+Get-Content .\db.sql | mysql -u root -p
+```
+
+O módulo `banco.py` aceita estas variáveis de ambiente:
+
+| Variável | Padrão no código | Descrição |
+|---|---|---|
+| `DB_HOST` | `localhost` | Endereço do servidor MySQL |
+| `DB_PORT` | `3306` | Porta do MySQL |
+| `DB_USER` | `root` | Usuário do banco |
+| `DB_PASSWORD` | `Senai@118` | Senha do banco |
+| `DB_NAME` | `saep_db` | Nome do banco |
+
+Configure `DB_PASSWORD` para corresponder à senha do seu MySQL. Evite manter senhas reais no código ou compartilhá-las.
+
+Exemplo de configuração apenas para a sessão atual do PowerShell:
+
+```powershell
+$env:DB_HOST = "localhost"
+$env:DB_PORT = "3306"
+$env:DB_USER = "root"
+$env:DB_PASSWORD = "sua-senha-local"
+$env:DB_NAME = "saep_db"
+$env:SECRET_KEY = "defina-uma-chave-aleatoria"
+```
+
+`SECRET_KEY` é usada pelo Flask para assinar sessões. O projeto tem um valor padrão de desenvolvimento; configure uma chave própria e segura antes de expor a aplicação.
+
+## Execução
+
+Com as dependências instaladas e as variáveis configuradas:
+
+```powershell
+python app.py
+```
+
+O servidor de desenvolvimento é iniciado em `http://127.0.0.1:5000`. O modo debug está ativado no código e deve ser desativado antes de qualquer implantação pública.
+
+## Usuários de exemplo
+
+O comentário de `db.sql` lista estas credenciais para os usuários semeados no banco:
+
+| Login | Senha |
+|---|---|
+| `admin` | `admin123` |
+| `carlos` | `carlos123` |
+| `ana` | `ana12345` |
+
+O login depende de colunas que não existem no esquema atual (`cargo` e `ativo` em `usuarios`); portanto, essas credenciais não permitem autenticar sem antes corrigir a incompatibilidade descrita abaixo.
+
+## Incompatibilidade conhecida
+
+O esquema de `db.sql` e as consultas nos módulos Python representam versões diferentes do banco. Alguns exemplos:
+
+- `autenticacao.py` consulta `cargo` e `ativo` na tabela `usuarios`, ausentes em `db.sql`.
+- `clientes.py` consulta e grava `cpf` e `data_cadastro`; o script define `cpf_hash` e `criado_em`.
+- `veiculos.py` usa `quilometragem`, que não está definida na tabela `veiculos` do script.
+- `agendamento.py` espera campos como `cliente_id`, `descricao_servico`, `valor_estimado` e `observacoes`; `db.sql` define uma estrutura diferente, baseada em `veiculo_id`, `servico_id` e `observacao`.
+- A consulta do painel em `rotas.py` também utiliza colunas de agendamento diferentes das declaradas no script.
+
+Essas diferenças causam erros nas operações que acessam o banco. Alinhe o esquema e as consultas antes de considerar o sistema funcional de ponta a ponta. Além disso, Bcrypt é uma função de hash, não criptografia reversível; como o CPF é usado em buscas e exibido nas telas, o tratamento atual precisa ser revisado para atender às necessidades de privacidade do projeto.
+
+## Estrutura do projeto
+
+```text
+.
+├── app.py                 # Inicialização da aplicação Flask
+├── rotas.py               # Rotas e controle de sessão
+├── autenticacao.py        # Login, logout e validação de sessão
+├── banco.py               # Configuração e conexão MySQL
+├── clientes.py            # Operações de clientes
+├── veiculos.py            # Operações de veículos
+├── agendamento.py         # Operações de agendamentos
+├── db.sql                 # Criação e dados de exemplo do banco
+├── requirements.txt       # Dependências Python
+├── der.png                # Diagrama entidade-relacionamento
+├── Tabelas.png            # Imagem de referência das tabelas
+├── templates/             # Páginas HTML renderizadas pelo Flask
+└── static/
+    ├── css/style.css      # Estilos
+    └── js/main.js         # Interações da interface
+```
+
+## Diagrama entidade-relacionamento
+
+![Diagrama entidade-relacionamento](der.png)
